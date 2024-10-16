@@ -1,0 +1,77 @@
+stages:
+  - build
+  - test
+  - deploy
+
+image: ubuntu:latest
+
+before_script:
+  - sudo rm -rf /home/deployer/server/node_modules
+  - sudo apt-get update -y
+  - sudo apt-get install nodejs npm -y
+
+  - sudo apt-get update -y
+
+variables:
+  NODE_ENV: "production"
+
+cache:
+  paths:
+    - client/node_modules/
+    - server/node_modules/
+
+build_client:
+  stage: build
+  image: node:14
+  script:
+    - cd client
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - client/build
+
+build_server:
+  stage: build
+  image: node:14
+  script:
+    - cd server
+    - npm install
+  artifacts:
+    paths:
+      - server/build
+
+test:
+  stage: test
+  image: node:14
+  script:
+    - cd client
+    - npm run test -- --watch=false
+    - cd ../server
+    - npm run test -- --watch=false
+
+deploy:
+  stage: deploy
+  image: ubuntu:latest
+  script:
+    - sudo apt-get install -y openssh-client
+    - sudo npm install pm2 -g
+    - echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
+    - sudo chown -R 1001:1001 "/home/deployer/.npm"
+   
+
+    - ssh -i private_key -o StrictHostKeyChecking=no deployer@44.200.190.70 "sudo mkdir -p /home/deployer/.pm2 && sudo chown deployer:deployer /home/deployer/.pm2 && cd ~/server && sudo npm install express && sudo pm2 start server.js"
+
+
+
+
+
+
+
+
+    
+
+
+
+  only:
+    - main
